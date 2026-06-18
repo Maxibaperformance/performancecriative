@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Performance Criativa
 
-## Getting Started
+Sistema de **engenharia reversa de criativos**: você sobe um anúncio estático de
+referência → o sistema **lê e disseca** (texto, funil, nível de consciência,
+ângulo, nota 0–100) → e **recria com o seu produto**, entregando **direção visual +
+brief + copy** prontos pro designer (e a **imagem**, se o Gemini estiver ativo).
 
-First, run the development server:
+## Arquitetura híbrida
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| Etapa | Modelo |
+|---|---|
+| Ler / analisar o criativo de referência (visão) | **Claude** (`claude-opus-4-8`) |
+| Copy + briefing + direção visual | **Claude** |
+| Gerar a IMAGEM do criativo (opcional) | **Gemini** (`gemini-3.1-flash-image`) |
+
+> A Anthropic não gera imagens — por isso a imagem fica com o Gemini, como um
+> plugue opcional. Sem a chave do Gemini, você ainda recebe análise + copy + brief
+> + direção visual (o briefing pronto pro designer).
+
+## Como funciona
+
+```
+SUBIR ANÚNCIO DE REFERÊNCIA      ANÁLISE (Claude)              RECRIAR COM SEU PRODUTO
+(Biblioteca de Anúncios)    →    texto extraído, funil,   →   URL do produto + marca
+                                 nível, ângulo, nota 0-100      ↓
+                                 validar / reclassificar       copy + brief + direção visual
+                                                                + imagem (se Gemini ativo)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Rodando localmente
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Instale as dependências (já feito): `npm install`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Configure as chaves:
+   ```bash
+   cp .env.local.example .env.local
+   ```
+   - `ANTHROPIC_API_KEY` (**obrigatória**) — https://console.anthropic.com/settings/keys
+   - `GEMINI_API_KEY` (**opcional**, pra gerar imagem) — https://aistudio.google.com/apikey
 
-## Learn More
+3. Rode: `npm run dev` → http://localhost:3000
 
-To learn more about Next.js, take a look at the following resources:
+## Fluxo de uso
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. **Marcas** → cadastre o contexto (DNA) de cada marca.
+2. **Analisar** → suba o anúncio de referência, veja a análise completa, valide/reclassifique.
+3. **Recriar** (no mesmo card) → cole a URL do seu produto, escolha clonar/inspirar → recebe copy + brief + direção visual (+ imagem se o Gemini estiver ativo).
+4. **Histórico** → todas as análises e recriações.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Estrutura
 
-## Deploy on Vercel
+```
+app/
+  analisar/             Fluxo principal: análise → recriação
+  estudio/              Criar do zero (copy + brief)
+  marcas/               Contexto por marca
+  historico/            Análises + recriações
+  api/{analisar,analises,recriar,gerar,marcas,criativos}
+lib/
+  anthropic.ts          Claude: análise (visão) + copy/brief/direção visual
+  geminiImage.ts        Gemini: geração de imagem (opcional)
+  taxonomia.ts          Rubrica de performance + taxonomia (calibre aqui)
+  scrape.ts             Leitura de produto por URL
+  store.ts              Camada de dados local (trocar por DB depois)
+  types.ts / config.ts
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Próximos passos (produto de equipe)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Trocar `lib/store.ts` por banco (Supabase/Postgres) + storage de imagens.
+- Autenticação e separação por cliente/marca.
+- Deploy: o filesystem local não persiste na Vercel — migrar storage antes.
